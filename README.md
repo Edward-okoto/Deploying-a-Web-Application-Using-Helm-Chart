@@ -183,7 +183,7 @@ Alternatively, if you use Scoop:
      ```
         ![](./img/e2.png)
 ---
-# **Create a New Helm Chart**
+## **Create a New Helm Chart**
 
 1.**Create  Project Directory**
 
@@ -211,6 +211,234 @@ git commit -m "Initial Helm webapp chart"
 
 4.**Push to Remote Repository**
 
+```
+git push
+```
+
+---
+
+# Customize Helm Chart
+
+Helm charts, values, and templates are the core components of Helm, a Kubernetes package manager. 
+
+---
+
+#### **1. Helm Charts**
+A Helm chart is a collection of files that define Kubernetes resources for deploying an application. It simplifies the deployment process by bundling all necessary configurations into a reusable package.
+
+#### **Structure of a Helm Chart**
+- **Chart.yaml**: Contains metadata about the chart, such as its name, version, and description.
+- **values.yaml**: Defines default configuration values for the chart.
+- **templates/**: Contains template files that generate Kubernetes manifests based on the values provided.
+- **charts/**: Holds dependencies for the chart.
+- **README.md**: Provides documentation for the chart.
+
+Charts can be used to deploy simple applications (e.g., a single pod) or complex ones (e.g., a web app stack with databases and caches).
+
+---
+
+#### **2. Values**
+The `values.yaml` file is used to define default configuration values for a Helm chart. These values can be overridden during deployment to customize the application for different environments (e.g., development, staging, production).
+
+#### **How Values Work**
+- **Default Values**: Specified in `values.yaml`.
+- **Override Values**: You can override defaults using a custom values file or command-line flags:
+  ```bash
+  helm install my-release my-chart --values=my-values.yaml
+  ```
+- **Dynamic Configuration**: Values are passed to templates to dynamically generate Kubernetes manifests.
+
+---
+
+#### **3. Templates**
+Templates are files in the `templates/` directory that use Go's templating language to generate Kubernetes manifests. They allow you to create dynamic configurations based on the values provided.
+
+##### **How Templates Work**
+- Templates use placeholders like `{{ .Values.key }}` to insert values from `values.yaml`.
+- They support conditional logic, loops, and functions for advanced customization.
+- Example template for a Kubernetes Deployment:
+  ```yaml
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: {{ .Values.name }}
+  spec:
+    replicas: {{ .Values.replicas }}
+    template:
+      spec:
+        containers:
+        - name: {{ .Values.containerName }}
+          image: {{ .Values.image }}
+  ```
+
+---
+
+#### **How They Work Together**
+1. **Chart**: Provides the structure and files needed for deployment.
+2. **Values**: Supplies configuration data to customize the deployment.
+3. **Templates**: Dynamically generate Kubernetes manifests using the values provided.
+
+---
+
+### Exploring the `webapp` Directory of our project
+- Navigate to the `webapp` directory created by Helm,inside,you will find
+    - `chart.yaml`: Contains metadata about the chart such as name,version and description.
+    - `values.yaml`: Provides configuration values that helm will inject into the template.Here you set default configuration values.
+    - `templates/`: Contains the template files that will generate kubernetes manifest files.These templates references the values defined in the `values.yaml`
+
+```
+cd webapp/
+
+ls
+```
+
+![](./img/e6.png)
 
 
 
+
+### Modify `values.yaml`
+
+- Open `values.yaml` in a text editor
+ 
+    ```
+    vi values.yaml
+    ```
+
+- Set the image to use the Nginx stable version
+
+    ```
+    replicaCount: 2
+
+    image:
+    repository: nginx
+    tag: stable
+    pullPolicy: IfNotPresent
+    ```
+
+    ![](./img/e7.png)
+
+
+- The configuration will deploy two replicas (`replicaCount: 2`) of the Nginx server.
+
+- Save changes.
+
+
+### Customize the  `templates/deployment.yaml`
+
+- Open the `deployment.yaml` file in the `templates/` directory.
+
+    ![](./img/e8.png)
+
+- Remove the line below from under  `spec.template.spec.containers.resources`
+
+    ```
+    {"{- toYaml .Values.resources | nindent 12 "}}
+    ``
+- Add a simple resource request and limit under `spec.template.spec.containers.resources`.This helps kubernetes manages resources efficiently.
+ 
+    ```
+    resources:
+    requests:
+        memory: "128Mi"
+        cpu: "100m"
+    limits:
+        memory: "256Mi"
+        cpu: "200m"
+    ```
+- These settings specify that the deployment should request 128Mi of memory and 100m of CPU but it wont use more than 236mi of memory and 200m of CPU.
+
+- Save the file after making changes.
+
+    ```
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+    name: {{ include "webapp.fullname" . }}
+    labels:
+        {{- include "webapp.labels" . | nindent 4 }}
+    spec:
+    {{- if not .Values.autoscaling.enabled }}
+    replicas: {{ .Values.replicaCount }}
+    {{- end }}
+    selector:
+        matchLabels:
+        {{- include "webapp.selectorLabels" . | nindent 6 }}
+    template:
+        metadata:
+        {{- with .Values.podAnnotations }}
+        annotations:
+            {{- toYaml . | nindent 8 }}
+        {{- end }}
+        labels:
+            {{- include "webapp.labels" . | nindent 8 }}
+            {{- with .Values.podLabels }}
+            {{- toYaml . | nindent 8 }}
+            {{- end }}
+        spec:
+        {{- with .Values.imagePullSecrets }}
+        imagePullSecrets:
+            {{- toYaml . | nindent 8 }}
+        {{- end }}
+        serviceAccountName: {{ include "webapp.serviceAccountName" . }}
+        {{- with .Values.podSecurityContext }}
+        securityContext:
+            {{- toYaml . | nindent 8 }}
+        {{- end }}
+        containers:
+            - name: {{ .Chart.Name }}
+            {{- with .Values.securityContext }}
+            securityContext:
+                {{- toYaml . | nindent 12 }}
+            {{- end }}
+            image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            ports:
+                - name: http
+                containerPort: {{ .Values.service.port }}
+                protocol: TCP
+            {{- with .Values.livenessProbe }}
+            livenessProbe:
+                {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- with .Values.readinessProbe }}
+            readinessProbe:
+                {{- toYaml . | nindent 12 }}
+            {{- end }}
+            resources:
+                requests:
+                memory: "128Mi"
+                cpu: "100m"
+                limits:
+                memory: "256Mi"
+                cpu: "200m"
+            {{- with .Values.volumeMounts }}
+            volumeMounts:
+                {{- toYaml . | nindent 12 }}
+            {{- end }}
+        {{- with .Values.volumes }}
+        volumes:
+            {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.nodeSelector }}
+        nodeSelector:
+            {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.affinity }}
+        affinity:
+            {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.tolerations }}
+        tolerations:
+            {{- toYaml . | nindent 8 }}
+        {{- end }}
+        
+    ```
+
+- Commit and Push changes
+
+    ```
+    git add .
+    git commit -m "Customized Helm chart"
+    git push
+    ```
