@@ -442,3 +442,259 @@ ls
     git commit -m "Customized Helm chart"
     git push
     ```
+
+# Deploying Your Application
+
+1. **Deploy With Helm** : Navigate to the root of the project directory `helm-web-app`
+
+    Deploy the application on kubernetes using the below command
+
+    ```
+    helm install my-webapp ./webapp
+    ```
+
+    ![](./img/e9.png)
+
+2. **Check Deployment** : 
+
+    ```
+    kubectl get deployments
+    ```
+
+    ![](./img/e10.png)
+
+3. **Visit Application URL** :
+
+    ```
+    export POD_NAME=$(kubectl get pods --namespace default -l "app.kubernetes.io/name=webapp,app.kubernetes.io/instance=my-webapp" -o jsonpath="{".items[0].metadata.name"}")
+
+    export CONTAINER_PORT=$(kubectl get pod --namespace default $POD_NAME -o jsonpath="{".spec.containers[0].ports[0].containerPort"}")
+
+    kubectl --namespace default port-forward $POD_NAME 8081:$CONTAINER_PORT
+    ```
+
+
+This series of commands is designed to set up **port-forwarding** for a specific Kubernetes pod in the `default` namespace. Here's a step-by-step breakdown of what each command does:
+
+---
+##### **1. Set the Pod Name**
+```bash
+export POD_NAME=$(kubectl get pods --namespace default -l "app.kubernetes.io/name=webapp,app.kubernetes.io/instance=my-webapp" -o jsonpath="{.items[0].metadata.name}")
+```
+- This command retrieves the name of the pod that matches the specified labels:
+  - **`app.kubernetes.io/name=webapp`**: Looks for pods with the label `webapp`.
+  - **`app.kubernetes.io/instance=my-webapp`**: Filters further to the specific instance.
+- It uses the `jsonpath` filter to extract the pod name from the metadata.
+- The result is stored in the `POD_NAME` environment variable for further use.
+
+---
+
+##### **2. Set the Container Port**
+```bash
+export CONTAINER_PORT=$(kubectl get pod --namespace default $POD_NAME -o jsonpath="{.spec.containers[0].ports[0].containerPort}")
+```
+- This retrieves the container's exposed port within the pod. Specifically:
+  - It queries the `default` namespace for the pod stored in `POD_NAME`.
+  - It accesses the `spec.containers[0].ports[0].containerPort` field to extract the first container port.
+- The extracted port number is stored in the `CONTAINER_PORT` environment variable.
+
+---
+
+##### **3. Set Up Port Forwarding**
+```bash
+kubectl --namespace default port-forward $POD_NAME 8081:$CONTAINER_PORT
+```
+- This forwards traffic from **localhost:8081** to the container's port within the pod:
+  - **`8081`**: The local port on your machine.
+  - **`$CONTAINER_PORT`**: The container port within the pod (from the previous command).
+- Effectively, this allows you to access the containerized application running inside Kubernetes via `localhost:8081`.
+
+---
+
+##### **Use Case**
+This process is typically used during **development and testing** to interact with Kubernetes workloads locally without exposing services externally.
+
+visit http://127.0.0.1:8081 to use your application.
+
+![](./img/e11.png)
+
+# Integrating Helm With Jenkins
+
+### 1.**Jenkins Setup**
+ Guide to downloading, installing, and setting up Jenkins, including the **Java dependency** 
+
+---
+##### **Step 1: Install Java**
+Jenkins requires Java to run. Follow these steps to install a supported version of Java (Java 11 or Java 17 is recommended):
+
+1. **Download Java**  
+   - Visit [Oracle](https://www.oracle.com/java/technologies/javase-downloads.html) or [OpenJDK](https://openjdk.org/install/).
+   - Choose the Java Development Kit (JDK) for your operating system.
+
+2. **Install Java**  
+   - Run the downloaded installer and follow the installation wizard.
+   - Note the installation directory (e.g., `C:\Program Files\Java\jdk-11`).
+
+3. **Set Up PATH**  
+   - Add the `bin` directory to your system's PATH environment variable:
+     - Open **System Properties** > **Advanced** > **Environment Variables**.
+     - Under **System Variables**, edit `PATH` and add:
+       ```
+       C:\Program Files\Java\jdk-11\bin
+       ```
+
+4. **Verify Java Installation**  
+   Open Command Prompt or PowerShell and run:
+   ```bash
+   java -version
+   ```
+   You should see the installed Java version.
+
+---
+
+##### **Step 2: Download Jenkins**
+- Go to the official Jenkins website: [Jenkins Downloads](https://www.jenkins.io/download/).
+- Choose the installer suitable for your operating system:
+  - For **Windows**: `.msi` file.
+  - For **Linux**: Install via repository.
+  - For **macOS**: Homebrew or `.war` file.
+
+---
+
+##### **Step 3: Install Jenkins**
+##### **For Windows:**
+1. Run the `.msi` installer.
+2. Follow the setup wizard and choose the default settings.
+3. Jenkins will install as a Windows service, allowing it to start automatically.
+
+##### **For Linux:**
+1. Install Jenkins via the repository (example for Debian/Ubuntu):
+   ```bash
+   sudo apt update
+   sudo apt install jenkins
+   ```
+2. Start Jenkins:
+   ```bash
+   sudo systemctl start jenkins
+   ```
+
+##### **For macOS:**
+1. Install Jenkins using Homebrew:
+   ```bash
+   brew install jenkins-lts
+   ```
+2. Start Jenkins:
+   ```bash
+   brew services start jenkins-lts
+   ```
+
+---
+
+##### **Step 4: Start Jenkins**
+For `.war` installations, use the following command:
+```bash
+java -jar jenkins.war
+```
+
+---
+
+##### **Step 5: Access Jenkins**
+1. Open your browser and navigate to:
+   ```
+   http://localhost:8080
+   ```
+2. Unlock Jenkins using the initial admin password:
+   - **Windows**: Locate the password in `C:\Program Files\Jenkins\secrets\initialAdminPassword`.
+   - **Linux/macOS**: Run:
+     ```bash
+     sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+     ```
+
+---
+
+##### **Step 6: Complete Setup**
+1. Install **recommended plugins**.
+2. Create an admin user account.
+3. Jenkins is ready to use!
+---
+
+### 2.**Determine Helm Binary Path**
+- The full binary path of Helm is required in the Jenkins pipeline script.
+- To find it, use
+  - Linux/macOS: `which helm`
+  - Windows: `Get-Command helm | Select-Object -ExpandProperty Source` 
+
+![](./img/e12.png)
+
+### 3.**Create a Jenkins Pipeline**
+- In jenkins, create a new pipeline job
+- Set the pipeline source as the Git repository you pushed your code to.
+- Configure the pipeline to trigger a build on commit to your repository.
+
+---
+
+##### **Steps Recap**
+
+##### **Step 3: Create a Jenkins Pipeline**
+1. **Create Pipeline Job**:
+   - Open your Jenkins dashboard and click **New Item**.
+   - Select **Pipeline**, name your job, and click **OK**.
+
+   ![](./img/e13.png)
+
+2. **Set Git Repository as Pipeline Source**:
+   - Under **Pipeline**, choose **Pipeline script from SCM**.
+   - Set the repository URL where your code is hosted (e.g., GitHub, GitLab).
+   - Configure authentication if needed to access the repository.
+
+   ![](./img/e14.png)
+
+3. **Trigger Build on Commit**:
+   - Set up a webhook on your Git repository that triggers Jenkins builds on push events.
+     - Check the `GitHub hook trigger for GITScm polling`
+     - `Apply` and `Save`
+
+     ![](./img/e15.png)
+
+     - Configure the github repository to use the webhook trigger.
+     - On your repository click `settings`> `Webhooks`> `Add Webhook`
+     - **Payload URL**: http://172.31.64.1:8080/github-webhook/
+     - **Content type** : application/json
+     - **Secret** : Optionally, add a secret token
+     - Select desired trigger events (e.g., push, merge requests).
+   - Alternatively, use Jenkins' polling mechanism under **Build Triggers**:
+     - Check the **Poll SCM** option and set a schedule (e.g., `H/5 * * * *` for every 5 minutes).
+---
+
+### **Step 4: Pipeline Script with Full Helm Path**
+Use the given pipeline script in the `Jenkinsfile` located in your Git repository:
+
+```groovy
+pipeline {
+    agent any
+    stages {
+        stage('Deploy with Helm') {
+            steps {
+                script {
+                    sh '/c/ProgramData/chocolatey/bin/helm upgrade --install my-webapp ./webapp --namespace default'
+                }
+            }
+        }
+    }
+}
+```
+
+**Key Points**:
+1. The script ensures Helm uses the correct path (`/c/ProgramData/chocolatey/bin/helm`).
+2. Adjust the namespace (`default`) and chart directory (`./webapp`) as needed.
+3. Save the `Jenkinsfile` in your Git repository root for Jenkins to execute.
+
+---
+
+#### **Validation**
+- After configuring the pipeline:
+  - Commit and push your `Jenkinsfile` to the repository.
+  - Trigger a manual build to ensure the pipeline runs smoothly.
+  - Check the console logs in Jenkins to verify Helm is executing correctly.
+
+---
