@@ -4,7 +4,7 @@ pipeline {
         stage('Deploy with Helm') {
             steps {
                 script {
-                    sh '/c/ProgramData/chocolatey/bin/helm upgrade --install my-webapp ./webapp --namespace default'
+                    bat 'C:\\ProgramData\\chocolatey\\bin\\helm upgrade --install my-webapp C:\\Users\\edwar\\Documents\\Myworkspace\\Deploying-a-Web-Application-Using-Helm-Chart\\helm-web-app\\webapp --namespace default'
                 }
             }
         }

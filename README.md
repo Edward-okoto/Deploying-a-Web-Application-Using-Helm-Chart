@@ -669,20 +669,29 @@ java -jar jenkins.war
 ### **Step 4: Pipeline Script with Full Helm Path**
 Use the given pipeline script in the `Jenkinsfile` located in your Git repository:
 
-```groovy
-pipeline {
-    agent any
-    stages {
-        stage('Deploy with Helm') {
-            steps {
-                script {
-                    sh '/c/ProgramData/chocolatey/bin/helm upgrade --install my-webapp ./webapp --namespace default'
+- Create a new `Jenkinsfile` in the root directory:
+
+  ```
+  nano Jenkinsfile
+  ```
+- Copy and paste your pipeline script into the `Jenkinsfile`:
+
+    ```groovy
+    pipeline {
+        agent any
+        stages {
+            stage('Deploy with Helm') {
+                steps {
+                    script {
+                        sh '/c/ProgramData/chocolatey/bin/helm upgrade --install my-webapp ./webapp --namespace default'
+                    }
                 }
             }
         }
     }
-}
-```
+    ```
+ - Save the file (**Ctrl + O**, Enter) and exit (**Ctrl + X**) if using nano
+
 
 **Key Points**:
 1. The script ensures Helm uses the correct path (`/c/ProgramData/chocolatey/bin/helm`).
@@ -698,3 +707,39 @@ pipeline {
   - Check the console logs in Jenkins to verify Helm is executing correctly.
 
 ---
+
+### **Step 5: Update Helm Chart and Trigger Jenkins Pipeline**
+
+1. Update Helm Chart and Push changes.
+- Edit the `values.yaml` in your `webapp` chart directory.
+  - Change the `replicaCount` to `3` to increase the number of replicas
+  - Save the changes
+
+- Edit the `templates/deployment.yaml` File
+  - Open `deployment.yaml` located in `templates` directory.
+  - Locate the `resources` section under the `spec.template.spec.containers`
+  - Update the resource request as follows.
+
+    ```
+    resources:
+    requests:
+        memory: "180Mi"
+        cpu: "120m"
+    ```
+  - Save the file after making changes.
+
+2. Commit and Push the Changes. 
+- Use Git commands to commit these changes and push to remote repository.
+- Execute these commands
+
+    ```
+    git add .
+    git commit -m "Updated replicas, memory and CPU requests"
+    git push
+    ```
+
+3. Jenkins Trigger Pipeline.
+- Once you push the changes to the repository,the configured jenkins pipeline will detect the commit.
+- Jenkins will then automatically start a new build, deploying your Helm chart with the new configurations. 
+
+
