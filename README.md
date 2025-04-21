@@ -799,6 +799,57 @@ Systematic steps to resolve the issue:
 This resolution allowed Jenkins to securely interact with your Kubernetes cluster, ensuring automation of the deployment process. 
 ---
 
-Hope You Enjoyed This Project!!!
+
 #TEST:webhook
+
+![](./img/e16.png)
+![](./img/e17.png)
+
+
+## TESTING
+
+Some Test carried out while carrying out the project.
+---
+
+### **1. Environment Validation**
+   - **Objective:** Verify Minikube is running and the Kubernetes cluster is accessible.
+   - **Test:** Run `minikube status` and `kubectl get nodes` to confirm the cluster's readiness.
+
+---
+
+### **2. Helm Chart Linting**
+   - **Objective:** Ensure the Helm chart files are free of syntax errors.
+   - **Test:** Execute `helm lint <chart>` to validate the chart structure and configurations.
+
+---
+
+### **3. Jenkins Pipeline Test**
+   - **Objective:** Verify that the Jenkins pipeline executes each stage correctly.
+   - **Test:** Run the pipeline with a sample application to check build, deploy, and test stages.
+
+---
+
+### **4. Resource Validation**
+   - **Objective:** Confirm resource limits and requests are applied to deployments correctly.
+   - **Test:** Use `kubectl describe pod <pod-name>` to inspect pod specifications.
+
+---
+
+### **5. Deployment Verification**
+   - **Objective:** Check whether the application is successfully deployed and running.
+   - **Test:** Run `kubectl get deployments` and `kubectl get pods` to ensure the pod statuses are "Running."
+
+---
+
+### **6. Application Accessibility**
+   - **Objective:** Test the accessibility of the application.
+   - **Test:** Set up port-forwarding (`kubectl port-forward`) and verify access via `curl http://localhost:<port>`.
+
+---
+
+### **7. Automated Tests**
+   - **Objective:** Validate application functionality with pre-configured test scripts.
+   - **Test:** Execute automated tests (e.g., unit or integration tests) within the Jenkins pipeline.
+
+---
 
