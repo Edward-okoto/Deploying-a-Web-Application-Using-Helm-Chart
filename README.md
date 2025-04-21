@@ -682,9 +682,7 @@ Use the given pipeline script in the `Jenkinsfile` located in your Git repositor
         stages {
             stage('Deploy with Helm') {
                 steps {
-                    script {
-                        sh '/c/ProgramData/chocolatey/bin/helm upgrade --install my-webapp ./webapp --namespace default'
-                    }
+                    bat 'C:\\ProgramData\\chocolatey\\bin\\helm upgrade --install my-webapp C:\\Users\\edwar\\Documents\\Myworkspace\\Deploying-a-Web-Application-Using-Helm-Chart\\helm-web-app\\webapp --namespace default'
                 }
             }
         }
@@ -695,7 +693,7 @@ Use the given pipeline script in the `Jenkinsfile` located in your Git repositor
 
 **Key Points**:
 1. The script ensures Helm uses the correct path (`/c/ProgramData/chocolatey/bin/helm`).
-2. Adjust the namespace (`default`) and chart directory (`./webapp`) as needed.
+2. Adjust the namespace (`default`) and chart directory (`./webapp`-I used the absolute path to the webapp/) as needed.
 3. Save the `Jenkinsfile` in your Git repository root for Jenkins to execute.
 
 ---
@@ -705,6 +703,9 @@ Use the given pipeline script in the `Jenkinsfile` located in your Git repositor
   - Commit and push your `Jenkinsfile` to the repository.
   - Trigger a manual build to ensure the pipeline runs smoothly.
   - Check the console logs in Jenkins to verify Helm is executing correctly.
+
+  **NOTE** This build will fail because of no **AUTHENTICATION** between Jenkins and Kubernetes Cluster.
+  Please refer to **Credential Challange** below to fix.
 
 ---
 
@@ -741,5 +742,63 @@ Use the given pipeline script in the `Jenkinsfile` located in your Git repositor
 3. Jenkins Trigger Pipeline.
 - Once you push the changes to the repository,the configured jenkins pipeline will detect the commit.
 - Jenkins will then automatically start a new build, deploying your Helm chart with the new configurations. 
+
+---
+
+### **Credential Challenge**
+The issue began when Jenkins pipeline failed during the Helm deployment stage with the error:  
+**"Kubernetes cluster unreachable: Authentication required."**  
+
+This happened because Jenkins was unable to authenticate with your Kubernetes cluster. Typically, Kubernetes requires credentials—either a kubeconfig file or an authentication token—to interact with the cluster API. While `kubectl` and `helm` worked manually on the system, Jenkins did not inherit the necessary authentication credentials to access the cluster.
+
+---
+
+#### **Resolution Process**
+Systematic steps to resolve the issue:
+
+1. **Identifying the Root Cause**:
+   - Verified that Helm and kubectl were installed and functioning locally using:
+     ```cmd
+     helm version
+     kubectl version
+     ```
+   - Checked Kubernetes connectivity manually with:
+     ```cmd
+     kubectl get nodes
+     ```
+   - This confirmed that the credentials required for cluster access were missing in Jenkins.
+
+2. **Configuring Kubernetes Credentials for Jenkins**:
+   - You added your kubeconfig file (located at `C:\Users\edwar\.kube\config`) as a **Secret file** in Jenkins:
+     - Navigated to **Manage Jenkins** > **Manage Credentials** > **System** > **Global credentials**.
+     - Uploaded the kubeconfig file and assigned it a credential ID (e.g., `kubeconfig-cred-id`).
+
+3. **Referencing Kubeconfig in Your Pipeline**:
+   - Modified the `Jenkinsfile` to include the `withCredentials` block, ensuring the kubeconfig file was correctly used during the pipeline execution:
+     ```groovy
+     pipeline {
+         agent any
+         stages {
+             stage('Deploy with Helm') {
+                 steps {
+                     withCredentials([file(credentialsId: 'kubeconfig-cred-id', variable: 'KUBECONFIG')]) {
+                         bat 'C:\\ProgramData\\chocolatey\\bin\\helm upgrade --install my-webapp C:\\Users\\edwar\\Documents\\Myworkspace\\Deploying-a-Web-Application-Using-Helm-Chart\\helm-web-app\\webapp --namespace default'
+                     }
+                 }
+             }
+         }
+     }
+     ```
+
+4. **Testing and Validating**:
+   - Triggered the pipeline again, and this time, Jenkins successfully authenticated with the cluster using the kubeconfig file.
+   - The Helm command executed flawlessly, deploying your application to the Kubernetes cluster.
+---
+
+#### **Outcome**
+This resolution allowed Jenkins to securely interact with your Kubernetes cluster, ensuring automation of the deployment process. 
+---
+
+Hope You Enjoyed This Project!!!
 
 
